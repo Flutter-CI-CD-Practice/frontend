@@ -1,5 +1,4 @@
 name: Flutter Release Workflow
-
 on:
   pull_request:
     types: [closed]
@@ -12,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.calculate_version.outputs.new_version }}
-      release_url: ${{ steps.create_release.outputs.html_url }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
       
     steps:
       - name: Checkout code
@@ -88,7 +87,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ github.event.release.upload_url || format('{0}/repos/{1}/releases/{2}/assets{{?name}}', github.api_url, github.repository, github.event.release.id) }}
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: ./build/app/outputs/flutter-apk/app-release.apk
           asset_name: app-release-${{ needs.create_release.outputs.new_version }}.apk
           asset_content_type: application/vnd.android.package-archive
