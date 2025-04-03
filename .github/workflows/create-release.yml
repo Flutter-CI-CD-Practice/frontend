@@ -65,8 +65,6 @@ jobs:
   build_apk:
     needs: create_release
     runs-on: ubuntu-latest
-    outputs:
-      apk_url: ${{ steps.upload_release_asset.outputs.browser_download_url }}
     
     steps:
       - name: Checkout code
@@ -90,11 +88,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create_release.outputs.release_url }}
+          upload_url: ${{ github.event.release.upload_url || format('{0}/repos/{1}/releases/{2}/assets{{?name}}', github.api_url, github.repository, github.event.release.id) }}
           asset_path: ./build/app/outputs/flutter-apk/app-release.apk
           asset_name: app-release-${{ needs.create_release.outputs.new_version }}.apk
           asset_content_type: application/vnd.android.package-archive
-
+          
   send_discord_notification:
     needs: [create_release, build_apk]
     runs-on: ubuntu-latest
@@ -108,7 +106,7 @@ jobs:
           description: |
             **Release:** [${{ github.event.pull_request.title }}](${{ needs.create_release.outputs.release_url }})
             **Version:** v${{ needs.create_release.outputs.new_version }}
-            **Download APK:** [app-release-${{ needs.create_release.outputs.new_version }}.apk](${{ needs.build_apk.outputs.apk_url }})
+            **Download APK:** [app-release-${{ needs.create_release.outputs.new_version }}.apk](${{ needs.create_release.outputs.release_url }})
           color: 0x4CAF50
           username: GitHub Actions
           avatar_url: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
