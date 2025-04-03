@@ -1,4 +1,5 @@
 name: Flutter Release Workflow
+
 on:
   pull_request:
     types: [closed]
@@ -11,8 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.calculate_version.outputs.new_version }}
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      release_html_url: ${{ steps.create_release.outputs.html_url }}
+      release_url: ${{ steps.create_release.outputs.html_url }}
       
     steps:
       - name: Checkout code
@@ -66,7 +66,7 @@ jobs:
     needs: create_release
     runs-on: ubuntu-latest
     outputs:
-      apk_url: ${{ steps.get_apk_url.outputs.apk_url }}
+      apk_url: ${{ steps.upload_release_asset.outputs.browser_download_url }}
     
     steps:
       - name: Checkout code
@@ -90,53 +90,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          upload_url: ${{ needs.create_release.outputs.release_url }}
           asset_path: ./build/app/outputs/flutter-apk/app-release.apk
           asset_name: app-release-${{ needs.create_release.outputs.new_version }}.apk
           asset_content_type: application/vnd.android.package-archive
-      
-      - name: Get APK URL
-        id: get_apk_url
-        run: |
-          REPO="${GITHUB_REPOSITORY}"
-          VERSION="${{ needs.create_release.outputs.new_version }}"
-          APK_URL="https://github.com/${REPO}/releases/download/${VERSION}/app-release-${VERSION}.apk"
-          echo "apk_url=${APK_URL}" >> $GITHUB_OUTPUT
 
-  github-releases-to-discord:
+  send_discord_notification:
     needs: [create_release, build_apk]
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      
-      - name: Prepare PR Body
-        id: prepare_body
-        run: |
-          # Truncate PR body if it's too long to avoid Discord limits
-          PR_BODY="${{ github.event.pull_request.body }}"
-          if [ ${#PR_BODY} -gt 1000 ]; then
-            PR_BODY="${PR_BODY:0:997}..."
-          fi
-          echo "pr_body<<EOF" >> $GITHUB_OUTPUT
-          echo "$PR_BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-      
-      - name: Send Discord Message
-        uses: appleboy/discord-action@v1.0.0
+      - name: Send Discord Notification
+        uses: sarisia/actions-status-discord@v1
         with:
-          webhook_id: ${{ secrets.DISCORD_WEBHOOK_ID }}
-          webhook_token: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
-          message: |
-            안뇽안뇽! 오늘 대시가 가져 온 배포 소식은~~
-            
-            **버전**: ${{ needs.create_release.outputs.new_version }}
-            **제목**: ${{ github.event.pull_request.title }}
-            
-            **내용**:
-            ${{ steps.prepare_body.outputs.pr_body }}
-            
-            **다운로드 링크**: [APK 다운로드](${{ needs.build_apk.outputs.apk_url }})
-            **릴리즈 링크**: [릴리즈 페이지](${{ needs.create_release.outputs.release_html_url }})
-            
-            @everyone
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: "New Release: v${{ needs.create_release.outputs.new_version }}"
+          description: |
+            **Release:** [${{ github.event.pull_request.title }}](${{ needs.create_release.outputs.release_url }})
+            **Version:** v${{ needs.create_release.outputs.new_version }}
+            **Download APK:** [app-release-${{ needs.create_release.outputs.new_version }}.apk](${{ needs.build_apk.outputs.apk_url }})
+          color: 0x4CAF50
+          username: GitHub Actions
+          avatar_url: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
