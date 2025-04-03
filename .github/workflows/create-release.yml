@@ -110,21 +110,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       
-      - name: Send to Discord
-        uses: sarisia/actions-status-discord@v1
+      - name: Prepare PR Body
+        id: prepare_body
+        run: |
+          # Truncate PR body if it's too long to avoid Discord limits
+          PR_BODY="${{ github.event.pull_request.body }}"
+          if [ ${#PR_BODY} -gt 1000 ]; then
+            PR_BODY="${PR_BODY:0:997}..."
+          fi
+          echo "pr_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$PR_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Send Discord Message
+        uses: appleboy/discord-action@v1.0.0
         with:
-          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          title: "새 릴리즈: ${{ github.event.pull_request.title }}"
-          description: |
+          webhook_id: ${{ secrets.DISCORD_WEBHOOK_ID }}
+          webhook_token: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
+          message: |
             안뇽안뇽! 오늘 대시가 가져 온 배포 소식은~~
             
             **버전**: ${{ needs.create_release.outputs.new_version }}
+            **제목**: ${{ github.event.pull_request.title }}
             
             **내용**:
-            ${{ github.event.pull_request.body }}
+            ${{ steps.prepare_body.outputs.pr_body }}
             
             **다운로드 링크**: [APK 다운로드](${{ needs.build_apk.outputs.apk_url }})
             **릴리즈 링크**: [릴리즈 페이지](${{ needs.create_release.outputs.release_html_url }})
-          color: 0x2105893
-          username: Release Bot
-          mention: "everyone"
+            
+            @everyone
