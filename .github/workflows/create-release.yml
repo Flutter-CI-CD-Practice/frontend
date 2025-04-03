@@ -92,3 +92,21 @@ jobs:
           asset_path: ./build/app/outputs/flutter-apk/app-release.apk
           asset_name: app-release-${{ needs.create_release.outputs.new_version }}.apk
           asset_content_type: application/vnd.android.package-archive
+          
+  send_discord_notification:
+    needs: [create_release, build_apk]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Send Discord Notification
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: "New Release: v${{ needs.create_release.outputs.new_version }}"
+          description: |
+            **Release:** [${{ github.event.pull_request.title }}](${{ needs.create_release.outputs.release_url }})
+            **Version:** v${{ needs.create_release.outputs.new_version }}
+            **Download APK:** [app-release-${{ needs.create_release.outputs.new_version }}.apk](${{ needs.create_release.outputs.release_url }})
+          color: 0x4CAF50
+          username: GitHub Actions
+          avatar_url: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
