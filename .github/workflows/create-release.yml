@@ -1,5 +1,4 @@
 name: Flutter Release Workflow
-
 on:
   pull_request:
     types: [closed]
@@ -12,7 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.calculate_version.outputs.new_version }}
-      release_url: ${{ steps.create_release.outputs.html_url }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_html_url: ${{ steps.create_release.outputs.html_url }}
       
     steps:
       - name: Checkout code
@@ -65,6 +65,8 @@ jobs:
   build_apk:
     needs: create_release
     runs-on: ubuntu-latest
+    outputs:
+      apk_url: ${{ steps.get_apk_url.outputs.apk_url }}
     
     steps:
       - name: Checkout code
@@ -88,25 +90,70 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ github.event.release.upload_url || format('{0}/repos/{1}/releases/{2}/assets{{?name}}', github.api_url, github.repository, github.event.release.id) }}
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: ./build/app/outputs/flutter-apk/app-release.apk
           asset_name: app-release-${{ needs.create_release.outputs.new_version }}.apk
           asset_content_type: application/vnd.android.package-archive
-          
-  send_discord_notification:
+      
+      - name: Get APK URL
+        id: get_apk_url
+        run: |
+          REPO="${GITHUB_REPOSITORY}"
+          VERSION="${{ needs.create_release.outputs.new_version }}"
+          APK_URL="https://github.com/${REPO}/releases/download/${VERSION}/app-release-${VERSION}.apk"
+          echo "apk_url=${APK_URL}" >> $GITHUB_OUTPUT
+
+  github-releases-to-discord:
     needs: [create_release, build_apk]
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Send Discord Notification
-        uses: sarisia/actions-status-discord@v1
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Send to Slack
+        uses: slackapi/slack-github-action@v1.24.0
         with:
-          webhook: ${{ secrets.DISCORD_WEBHOOK }}
-          title: "New Release: v${{ needs.create_release.outputs.new_version }}"
-          description: |
-            **Release:** [${{ github.event.pull_request.title }}](${{ needs.create_release.outputs.release_url }})
-            **Version:** v${{ needs.create_release.outputs.new_version }}
-            **Download APK:** [app-release-${{ needs.create_release.outputs.new_version }}.apk](${{ needs.create_release.outputs.release_url }})
-          color: 0x4CAF50
-          username: GitHub Actions
-          avatar_url: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
+          payload: |
+            {
+              "text": "안뇽안뇽! 오늘 대시가 가져 온 배포 소식은~~",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "안뇽안뇽! 오늘 대시가 가져 온 배포 소식은~~"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*버전*: ${{ needs.create_release.outputs.new_version }}\n*제목*: ${{ github.event.pull_request.title }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*내용*:\n${{ github.event.pull_request.body }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*다운로드 링크*: <${{ needs.build_apk.outputs.apk_url }}|APK 다운로드>\n*릴리즈 링크*: <${{ needs.create_release.outputs.release_html_url }}|릴리즈 페이지>"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "<!channel>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
