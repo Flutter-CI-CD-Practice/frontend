@@ -32,23 +32,21 @@ jobs:
               repo: context.repo.repo,
               issue_number: context.issue.number
             });
-            
+      
             const body = issue.data.body;
-            
-            // 이슈 폼에서 체크된 항목 추출
+      
             const lines = body.split('\n');
             const checkedItems = [];
-            
-            // 체크된 항목 찾기 (이슈 폼은 "- [x] 항목명" 형식으로 체크박스를 표시)
+      
             for (const line of lines) {
               const match = line.match(/^\s*-\s*\[x\]\s*(.+)$/i);
               if (match) {
                 checkedItems.push(match[1].trim());
               }
             }
-            
-            console.log('Checked items:', checkedItems);
-            return checkedItems;
+      
+            const output = JSON.stringify(checkedItems);
+            core.setOutput('checked', output);
 
       - name: Login to Jira
         uses: atlassian/gajira-login@v3
@@ -65,7 +63,7 @@ jobs:
           EPIC_KEY="${{ steps.extract-epic.outputs.epic_key }}"
           
           # JSON 형태로 반환된 체크된 항목 목록
-          CHECKED_ITEMS='${{ toJSON(steps.get-form-data.outputs.result) }}'
+          CHECKED_ITEMS='${{ steps.get-form-data.outputs.checked }}'
           echo "Checked items: $CHECKED_ITEMS"
           
           # 결과 저장 변수
