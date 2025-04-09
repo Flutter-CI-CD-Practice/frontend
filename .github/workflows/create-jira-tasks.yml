@@ -20,7 +20,7 @@ jobs:
           fi
           echo "epic_key=$EPIC_KEY" >> $GITHUB_OUTPUT
           echo "project_key=${EPIC_KEY%%-*}" >> $GITHUB_OUTPUT
-
+      
       - name: Get Issue Form Data
         id: get-form-data
         uses: actions/github-script@v6
@@ -48,7 +48,9 @@ jobs:
             }
             
             console.log('Checked items:', checkedItems);
-            return checkedItems;
+            
+            // Set the output as a string array in proper JSON format
+            core.setOutput('checked_items', JSON.stringify(checkedItems));
 
       - name: Login to Jira
         uses: atlassian/gajira-login@v3
@@ -64,16 +66,18 @@ jobs:
           PROJECT_KEY="${{ steps.extract-epic.outputs.project_key }}"
           EPIC_KEY="${{ steps.extract-epic.outputs.epic_key }}"
           
-          # JSON 형태로 반환된 체크된 항목 목록
-          CHECKED_ITEMS='${{ toJSON(steps.get-form-data.outputs.result) }}'
+          # Parse the checked items correctly
+          CHECKED_ITEMS='${{ steps.get-form-data.outputs.checked_items }}'
           echo "Checked items: $CHECKED_ITEMS"
           
           # 결과 저장 변수
           CREATED_TASKS=()
           FAILED_TASKS=()
           
-          # 각 체크된 항목마다 JIRA 하위 작업 생성
-          for ITEM in $(echo $CHECKED_ITEMS | jq -r '.[]'); do
+          # Use proper JSON parsing to iterate through the array
+          readarray -t ITEMS < <(echo "$CHECKED_ITEMS" | jq -r '.[]')
+          
+          for ITEM in "${ITEMS[@]}"; do
             echo "Creating sub-task for: $ITEM"
             
             # JIRA 하위 작업 생성
