@@ -25,7 +25,9 @@ body:
           required: false
         - label: UI 구현
           required: false
-        - label: DB 연동
+        - label: DB 작업
+          required: false
+        - label: 데이터 연동
           required: false
         - label: 애니메이션 추가
           required: false
