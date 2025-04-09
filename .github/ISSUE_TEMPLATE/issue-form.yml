@@ -18,7 +18,7 @@ body:
     attributes:
       label: 설명
       description: 이슈에 대해 간략하게 설명해주세요.
-      placeholder: 예: 온보딩을 구현합니다
+      placeholder: 예) 온보딩을 구현합니다
 
   - type: checkboxes
     id: tasks
