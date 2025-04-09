@@ -1,42 +1,47 @@
 name: Epic Tasks Template
-description: 지라 에픽과 연동될 이슈 템플릿
-title: "[EPIC-KEY] 제목"
+description: 지라 에픽과 연동되어, 하위 작업을 자동으로 생성합니다
+title: "[EPIC-KEY] 에픽 제목"
 body:
   - type: markdown
     attributes:
       value: |
-        ## 에픽 설명
-        이 이슈는 지라 에픽과 연동됩니다. 아래 체크리스트에 추가되는 작업들은 자동으로 지라의 하위 작업으로 생성됩니다.
+        ## ❤️‍🔥 이슈 생성 규칙 (hotfix/release 제외)
+        - 제목
+          - 연동할 에픽의 [EPIC-KEY]를 써주세요 (예: [FCC-12] 온보딩)
+        - feature 브랜치
+          - 브랜치명은 feature/EPIC-KEY 형식을 지켜주세요 (예: feature/fcc-12)
+          - 브랜치는 develop으로부터 생성해주세요
+        - 이 이슈는 지라 에픽과 연동됩니다. 아래 체크박스 중 에픽의 하위 작업으로 두고 싶은 항목을 체크하면, 이슈 생성 시 자동으로 지라 작업이 생성됩니다. 이 외에 하위 작업으로 만들고 싶은 것이 있다면, 지라에서 직접 생성해주세요!
 
   - type: textarea
     id: description
     attributes:
       label: 설명
-      description: 이 에픽에 대한 간략한 설명을 입력하세요.
-      placeholder: 이 기능은...
+      description: 이슈에 대해 간략하게 설명해주세요.
+      placeholder: 예: 온보딩을 구현합니다
 
   - type: checkboxes
     id: tasks
     attributes:
       label: 하위 작업
-      description: 체크된 항목들은 에픽의 하위 작업으로 생성됩니다.
-      options:
+      description: 하위작업으로 생성할 항목을 선택해주세요
         - label: 설계
           required: false
         - label: UI 구현
           required: false
         - label: DB 작업
           required: false
-        - label: 데이터 연동
+        - label: API 작업
+          required: false
+        - label: UI-데이터 연동
           required: false
         - label: 애니메이션 추가
           required: false
-
-  - type: textarea
-    id: additional_tasks
-    attributes:
-      label: 추가 하위 작업
-      description: 위에 나열되지 않은 추가 하위 작업을 체크리스트 형식으로 입력하세요 (예: - [ ] 작업명)
-      placeholder: |
-        - [ ] 추가 작업 1
-        - [ ] 추가 작업 2
+        - label: 자체 테스트
+          required: false
+        - label: 코드 리뷰
+          required: false
+        - label: 문서화
+          required: false
+        - label: 성능 최적화
+          required: false
