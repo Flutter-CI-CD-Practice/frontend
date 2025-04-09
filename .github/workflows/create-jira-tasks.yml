@@ -1,11 +1,11 @@
-name: Create JIRA Sub-tasks from GitHub Issue Template
+name: Create JIRA Sub-task from GitHub Issue Template
 
 on:
   issues:
     types: [opened, edited]
 
 jobs:
-  create-jira-subtasks:
+  create-jira-subtask:
     runs-on: ubuntu-latest
     steps:
       - name: Extract Epic Key from Issue Title
@@ -21,8 +21,8 @@ jobs:
           echo "epic_key=$EPIC_KEY" >> $GITHUB_OUTPUT
           echo "project_key=${EPIC_KEY%%-*}" >> $GITHUB_OUTPUT
       
-      - name: Get Issue Form Data
-        id: get-form-data
+      - name: Get First Checked Item
+        id: get-first-item
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -35,130 +35,49 @@ jobs:
             
             const body = issue.data.body;
             
-            // 이슈 폼에서 체크된 항목 추출
-            const lines = body.split('\n');
-            const checkedItems = [];
-            
-            // 체크된 항목 찾기 (이슈 폼은 "- [x] 항목명" 형식으로 체크박스를 표시)
-            for (const line of lines) {
-              const match = line.match(/^\s*-\s*\[x\]\s*(.+)$/i);
-              if (match) {
-                checkedItems.push(match[1].trim());
-              }
+            // First checked item from issue form
+            const match = body.match(/^\s*-\s*\[x\]\s*(.+)$/im);
+            if (match) {
+              core.setOutput('item', match[1].trim());
+              return true;
             }
-            
-            console.log('Checked items:', checkedItems);
-            
-            // Set the output as a string array in proper JSON format
-            core.setOutput('checked_items', JSON.stringify(checkedItems));
+            return false;
 
       - name: Login to Jira
+        if: steps.get-first-item.outputs.result == 'true'
         uses: atlassian/gajira-login@v3
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
 
-      - name: Create Sub-tasks
-        if: steps.extract-epic.outputs.epic_key != ''
-        id: create-subtasks
-        run: |
-          PROJECT_KEY="${{ steps.extract-epic.outputs.project_key }}"
-          EPIC_KEY="${{ steps.extract-epic.outputs.epic_key }}"
-          
-          # Parse the checked items correctly
-          CHECKED_ITEMS='${{ steps.get-form-data.outputs.checked_items }}'
-          echo "Checked items: $CHECKED_ITEMS"
-          
-          # 결과 저장 변수
-          CREATED_TASKS=()
-          FAILED_TASKS=()
-          
-          # Use proper JSON parsing to iterate through the array
-          readarray -t ITEMS < <(echo "$CHECKED_ITEMS" | jq -r '.[]')
-          
-          for ITEM in "${ITEMS[@]}"; do
-            echo "Creating sub-task for: $ITEM"
-            
-            # JIRA 하위 작업 생성
-            RESPONSE=$(npx -y @atlassian/gajira-create@latest --project "$PROJECT_KEY" --issuetype "Sub-task" --summary "$ITEM" --fields "{\"parent\":{\"key\":\"$EPIC_KEY\"}}")
-            
-            # 응답에서 이슈 키 추출
-            if [[ $RESPONSE =~ [A-Z]+-[0-9]+ ]]; then
-              ISSUE_KEY=$(echo $RESPONSE | grep -oE '[A-Z]+-[0-9]+')
-              echo "Created JIRA sub-task: $ISSUE_KEY"
-              CREATED_TASKS+=("{\"key\":\"$ISSUE_KEY\",\"name\":\"$ITEM\"}")
-            else
-              echo "Failed to create sub-task for: $ITEM"
-              echo "Response: $RESPONSE"
-              FAILED_TASKS+=("{\"name\":\"$ITEM\",\"error\":\"Creation failed\"}")
-            fi
-          done
-          
-          # 결과를 JSON 형태로 변환
-          if [ ${#CREATED_TASKS[@]} -gt 0 ]; then
-            CREATED_JSON="["
-            for TASK in "${CREATED_TASKS[@]}"; do
-              CREATED_JSON+="$TASK,"
-            done
-            CREATED_JSON=${CREATED_JSON%,}
-            CREATED_JSON+="]"
-            echo "created_json=$CREATED_JSON" >> $GITHUB_OUTPUT
-          else
-            echo "created_json=[]" >> $GITHUB_OUTPUT
-          fi
-          
-          if [ ${#FAILED_TASKS[@]} -gt 0 ]; then
-            FAILED_JSON="["
-            for TASK in "${FAILED_TASKS[@]}"; do
-              FAILED_JSON+="$TASK,"
-            done
-            FAILED_JSON=${FAILED_JSON%,}
-            FAILED_JSON+="]"
-            echo "failed_json=$FAILED_JSON" >> $GITHUB_OUTPUT
-          else
-            echo "failed_json=[]" >> $GITHUB_OUTPUT
-          fi
+      - name: Create JIRA subtask
+        if: steps.get-first-item.outputs.result == 'true'
+        uses: atlassian/gajira-create@v3
+        id: create-jira-task
+        with:
+          project: ${{ steps.extract-epic.outputs.project_key }}
+          issuetype: "Sub-task"
+          summary: "${{ steps.get-first-item.outputs.item }}"
+          fields: '{"parent":{"key":"${{ steps.extract-epic.outputs.epic_key }}"}}'
 
       - name: Add Comment to GitHub Issue
+        if: steps.get-first-item.outputs.result == 'true'
         uses: actions/github-script@v6
-        if: steps.create-subtasks.outputs.created_json != '' || steps.create-subtasks.outputs.failed_json != ''
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const epicKey = '${{ steps.extract-epic.outputs.epic_key }}';
-            const createdTasksJson = '${{ steps.create-subtasks.outputs.created_json }}';
-            const failedTasksJson = '${{ steps.create-subtasks.outputs.failed_json }}';
-            
-            let createdTasks = [];
-            let failedTasks = [];
-            
-            try {
-              if (createdTasksJson && createdTasksJson !== '[]') {
-                createdTasks = JSON.parse(createdTasksJson);
-              }
-              
-              if (failedTasksJson && failedTasksJson !== '[]') {
-                failedTasks = JSON.parse(failedTasksJson);
-              }
-            } catch (e) {
-              console.error('Error parsing JSON:', e);
-            }
+            const createdKey = '${{ steps.create-jira-task.outputs.issue }}';
+            const item = '${{ steps.get-first-item.outputs.item }}';
             
             let comment = '';
             
-            if (createdTasks.length > 0) {
-              comment += `:white_check_mark: Created ${createdTasks.length} JIRA sub-tasks under Epic ${epicKey}:\n`;
-              for (const task of createdTasks) {
-                comment += `- [${task.key}] ${task.name}\n`;
-              }
-            }
-            
-            if (failedTasks.length > 0) {
-              comment += `\n:x: Failed to create ${failedTasks.length} sub-tasks:\n`;
-              for (const task of failedTasks) {
-                comment += `- ${task.name}: ${task.error || 'Unknown error'}\n`;
-              }
+            if (createdKey) {
+              comment += `:white_check_mark: Created JIRA sub-task under Epic ${epicKey}:\n`;
+              comment += `- [${createdKey}] ${item}\n`;
+            } else {
+              comment += `:x: Failed to create JIRA sub-task\n`;
             }
             
             if (comment) {
