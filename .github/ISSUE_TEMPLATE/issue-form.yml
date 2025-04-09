@@ -25,6 +25,7 @@ body:
     attributes:
       label: ☑️ 하위 작업
       description: 하위작업으로 생성할 항목을 선택해주세요
+      options:
         - label: 설계
         - label: UI 구현
         - label: DB 작업
