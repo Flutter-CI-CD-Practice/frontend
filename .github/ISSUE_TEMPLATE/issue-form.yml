@@ -1,40 +1,40 @@
-name: '이슈 생성'
-description: '깃허브 이슈와 지라 티켓을 생성합니다'
-labels: [feat]
-title: '이슈 이름을 작성해주세요'
+name: Epic Tasks Template
+description: 지라 에픽과 연동될 이슈 템플릿
+title: "[EPIC-KEY] 제목"
 body:
-  - type: input
-    id: parentKey
+  - type: markdown
     attributes:
-      label: '상위 작업 (Ticket Number)'
-      description: '에픽의 Ticket Number를 기입해주세요'
-      placeholder: 'FCC-00'
-    validations:
-      required: true
-
-  - type: input
-    id: branch
-    attributes:
-      label: '브랜치명 (Branch)'
-      description: '영어로 feature/브랜치명을 작성해주세요. ex) feature/login'
-    validations:
-      required: true
-      
-  - type: input
-    id: description
-    attributes:
-      label: '상세 내용(Description)'
-      description: '이슈에 대해서 간략히 설명해주세요'
-    validations:
-      required: true
+      value: |
+        ## 에픽 설명
+        이 이슈는 지라 에픽과 연동됩니다. 아래 체크리스트에 추가되는 작업들은 자동으로 지라의 하위 작업으로 생성됩니다.
 
   - type: textarea
+    id: description
+    attributes:
+      label: 설명
+      description: 이 에픽에 대한 간략한 설명을 입력하세요.
+      placeholder: 이 기능은...
+
+  - type: checkboxes
     id: tasks
     attributes:
-      label: '체크리스트(Tasks)'
-      description: '해당 이슈에 대해 필요한 작업목록을 작성해주세요'
-      value: |
-        - [ ] Task1
-        - [ ] Task2
-    validations:
-      required: true
+      label: 하위 작업
+      description: 체크된 항목들은 에픽의 하위 작업으로 생성됩니다.
+      options:
+        - label: 설계
+          required: false
+        - label: UI 구현
+          required: false
+        - label: DB 연동
+          required: false
+        - label: 애니메이션 추가
+          required: false
+
+  - type: textarea
+    id: additional_tasks
+    attributes:
+      label: 추가 하위 작업
+      description: 위에 나열되지 않은 추가 하위 작업을 체크리스트 형식으로 입력하세요 (예: - [ ] 작업명)
+      placeholder: |
+        - [ ] 추가 작업 1
+        - [ ] 추가 작업 2
