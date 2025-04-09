@@ -16,32 +16,22 @@ body:
   - type: textarea
     id: description
     attributes:
-      label: 설명
+      label: 🔎 설명
       description: 이슈에 대해 간략하게 설명해주세요.
       placeholder: 예) 온보딩을 구현합니다
 
   - type: checkboxes
     id: tasks
     attributes:
-      label: 하위 작업
+      label: ☑️ 하위 작업
       description: 하위작업으로 생성할 항목을 선택해주세요
         - label: 설계
-          required: false
         - label: UI 구현
-          required: false
         - label: DB 작업
-          required: false
         - label: API 작업
-          required: false
         - label: UI-데이터 연동
-          required: false
         - label: 애니메이션 추가
-          required: false
         - label: 자체 테스트
-          required: false
         - label: 코드 리뷰
-          required: false
         - label: 문서화
-          required: false
         - label: 성능 최적화
-          required: false
